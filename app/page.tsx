@@ -41,6 +41,12 @@ type HistoryDrag = {
   moved: boolean;
 };
 
+type MoonDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+};
+
 const initialValues: TimeValues = {
   day: '',
   month: '',
@@ -167,28 +173,36 @@ export default function Home() {
   const [repulsionCenterX, setRepulsionCenterX] = useState('54%');
   const [repulsionCircleSize, setRepulsionCircleSize] = useState('clamp(420px, 42vw, 560px)');
   const [moonPhase, setMoonPhase] = useState(0);
+  const [moonDragOffset, setMoonDragOffset] = useState<HistoryOffset>({ x: 0, y: 0 });
+  const [moonDragging, setMoonDragging] = useState(false);
   const [historyOffsets, setHistoryOffsets] = useState<Record<string, HistoryOffset>>({});
   const [draggingHistoryId, setDraggingHistoryId] = useState<string | null>(null);
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
+  const moonDragRef = useRef<MoonDrag | null>(null);
   const historyDidDragRef = useRef(false);
 
   useEffect(() => {
-    try {
-      const storedHistory = window.localStorage.getItem('time-in-history');
-      if (storedHistory) {
-        const parsedHistory = JSON.parse(storedHistory);
-        if (Array.isArray(parsedHistory)) {
-          setHistory(parsedHistory.slice(0, 6));
+    const loadHistory = () => {
+      try {
+        const storedHistory = window.localStorage.getItem('time-in-history');
+        if (storedHistory) {
+          const parsedHistory = JSON.parse(storedHistory);
+          if (Array.isArray(parsedHistory)) {
+            setHistory(parsedHistory.slice(0, 6));
+          }
         }
+      } catch {
+        // Local history is optional; keep the page usable if storage is unavailable.
+      } finally {
+        setHistoryLoaded(true);
       }
-    } catch {
-      // Local history is optional; keep the page usable if storage is unavailable.
-    } finally {
-      setHistoryLoaded(true);
-    }
+    };
+
+    const timer = window.setTimeout(loadHistory, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -251,7 +265,8 @@ export default function Home() {
     setValues((currentValues) => ({ ...currentValues, [field]: nextValue }));
 
     if (nextValue.length === maxLength && nextIndex !== undefined) {
-      requestAnimationFrame(() => inputRefs.current[nextIndex]?.focus());
+      const form = event.currentTarget.form;
+      requestAnimationFrame(() => form?.querySelectorAll<HTMLInputElement>('.date-input')[nextIndex]?.focus());
     }
   };
 
@@ -306,6 +321,46 @@ export default function Home() {
     setValues(entry.values);
     setDifference(getDifference(entry.values));
     setShowResults(true);
+  };
+
+  const handleMoonPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    moonDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    setMoonDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleMoonPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = moonDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    setMoonDragOffset({
+      x: event.clientX - drag.startX,
+      y: event.clientY - drag.startY,
+    });
+  };
+
+  const handleMoonPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (moonDragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    moonDragRef.current = null;
+    setMoonDragging(false);
+    setMoonDragOffset({ x: 0, y: 0 });
   };
 
   const handleHistoryPointerDown = (entryId: string) => (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -403,8 +458,20 @@ export default function Home() {
           '--moon-angle': `${moonPhase * 360}deg`,
         } as CSSProperties}
       >
-        <div className="moon-orbit" aria-hidden="true">
-          <span className="moon-dot" />
+        <div className="moon-orbit">
+          <button
+            aria-label="Drag the moon"
+            className={`moon-dot ${moonDragging ? 'is-dragging' : ''}`}
+            onPointerCancel={handleMoonPointerUp}
+            onPointerDown={handleMoonPointerDown}
+            onPointerMove={handleMoonPointerMove}
+            onPointerUp={handleMoonPointerUp}
+            style={{
+              '--moon-drag-x': `${moonDragOffset.x}px`,
+              '--moon-drag-y': `${moonDragOffset.y}px`,
+            } as CSSProperties}
+            type="button"
+          />
         </div>
         {history.length > 0 && (
           <div className={`history-ring ${draggingHistoryId ? 'is-dragging' : ''} ${hoveringHistoryId ? 'is-paused' : ''}`}>

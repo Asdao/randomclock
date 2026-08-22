@@ -433,10 +433,30 @@ h1 {
   left: 0;
   width: clamp(8px, 1.1vw, 14px);
   aspect-ratio: 1;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--ink);
   box-shadow: 0 0 0.8rem rgb(5 5 5 / 18%);
-  transform: translate(-50%, -50%);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transform: translate(
+    calc(-50% + var(--moon-drag-x, 0px)),
+    calc(-50% + var(--moon-drag-y, 0px))
+  );
+  transition: transform 680ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms ease;
+}
+
+.moon-dot.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 0 1.15rem rgb(5 5 5 / 30%);
+  transition: none;
+}
+
+.moon-dot:focus-visible {
+  outline: 2px solid var(--muted-ink);
+  outline-offset: 4px;
 }
 
 .history-ring {
@@ -658,7 +678,8 @@ h1 {
   .results-layer,
   .results-card,
   .history-orbit::after,
-  .moon-orbit {
+  .moon-orbit,
+  .moon-dot {
     animation-duration: 1ms;
     animation-iteration-count: 1;
     transition-duration: 1ms;
