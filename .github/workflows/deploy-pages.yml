@@ -41,6 +41,15 @@ jobs:
           GITHUB_PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path || format('/{0}', github.event.repository.name) }}
         run: npm run build
 
+      - name: Flatten project Pages assets
+        env:
+          GITHUB_PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path || format('/{0}', github.event.repository.name) }}
+        run: |
+          if [ -n "$GITHUB_PAGES_BASE_PATH" ] && [ -d "./dist/client$GITHUB_PAGES_BASE_PATH" ]; then
+            cp -R "./dist/client$GITHUB_PAGES_BASE_PATH/." ./dist/client/
+            rm -rf "./dist/client$GITHUB_PAGES_BASE_PATH"
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
