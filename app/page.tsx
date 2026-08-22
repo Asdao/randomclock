@@ -165,6 +165,7 @@ export default function Home() {
   const [typingTick, setTypingTick] = useState(0);
   const [invalidFields, setInvalidFields] = useState<Array<keyof TimeValues>>([]);
   const [repulsionCenterX, setRepulsionCenterX] = useState('54%');
+  const [repulsionCircleSize, setRepulsionCircleSize] = useState('clamp(420px, 42vw, 560px)');
   const [moonPhase, setMoonPhase] = useState(0);
   const [historyOffsets, setHistoryOffsets] = useState<Record<string, HistoryOffset>>({});
   const [draggingHistoryId, setDraggingHistoryId] = useState<string | null>(null);
@@ -206,6 +207,7 @@ export default function Home() {
       const bounds = titleWords.getBoundingClientRect();
       if (bounds.width > 0) {
         setRepulsionCenterX(`${bounds.left + bounds.width / 2}px`);
+        setRepulsionCircleSize(`${Math.min(560, Math.max(420, bounds.width * 1.08))}px`);
       }
     };
 
@@ -397,6 +399,7 @@ export default function Home() {
         style={{
           '--history-density': Math.min(0.3, 0.06 + history.length * 0.04),
           '--repulsion-center-x': repulsionCenterX,
+          '--repulsion-circle-size': repulsionCircleSize,
           '--moon-angle': `${moonPhase * 360}deg`,
         } as CSSProperties}
       >

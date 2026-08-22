@@ -401,7 +401,7 @@ h1 {
   position: absolute;
   top: 50%;
   left: var(--repulsion-center-x, 54%);
-  width: min(42vw, 560px);
+  width: var(--repulsion-circle-size, clamp(420px, 42vw, 560px));
   aspect-ratio: 1;
   border-radius: 50%;
   background: rgb(5 5 5 / 5%);
@@ -410,18 +410,21 @@ h1 {
   pointer-events: none;
   transform: translate(-50%, -50%);
   animation: history-core-pulse 5.6s ease-in-out infinite;
+  transform-origin: center;
 }
 
 .moon-orbit {
   position: absolute;
   top: 50%;
   left: var(--repulsion-center-x, 54%);
-  width: min(42vw, 560px);
+  width: var(--repulsion-circle-size, clamp(420px, 42vw, 560px));
   aspect-ratio: 1;
   pointer-events: none;
   transform: translate(-50%, -50%) rotate(var(--moon-angle, 0deg));
   transition: transform 1500ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
+  animation: moon-edge-pulse 5.6s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, scale;
 }
 
 .moon-dot {
@@ -578,12 +581,19 @@ h1 {
 @keyframes history-core-pulse {
   0%, 100% {
     opacity: 0.06;
-    transform: translate(-50%, -50%) scale(0.97);
+    border-radius: 48% 52% 51% 49%;
+    transform: translate(-50%, -50%) rotate(-1deg) scale(0.97, 0.985);
   }
   50% {
     opacity: 0.09;
-    transform: translate(-50%, -50%) scale(1.03);
+    border-radius: 53% 47% 48% 52%;
+    transform: translate(-50%, -50%) rotate(1deg) scale(1.03, 1.015);
   }
+}
+
+@keyframes moon-edge-pulse {
+  0%, 100% { scale: 0.97 0.985; }
+  50% { scale: 1.03 1.015; }
 }
 
 @keyframes metrics-arrive {
@@ -658,6 +668,10 @@ h1 {
 @media (max-width: 420px) {
   .time-page {
     padding: 28px;
+  }
+
+  .time-display {
+    transform: none;
   }
 
   .date-time {
