@@ -89,6 +89,11 @@ body {
   background: radial-gradient(circle at 50% 42%, rgb(255 255 255 / 0%) 0 30%, rgb(255 222 218 / 34%) 100%);
 }
 
+.time-page.has-results > .history-orbit,
+.time-page.has-results > .time-display {
+  display: none;
+}
+
 .time-display {
   position: relative;
   z-index: 2;
@@ -318,10 +323,10 @@ h1 {
   place-items: center;
   overflow: hidden;
   padding: clamp(24px, 6vw, 80px);
-  background: rgb(255 255 255 / 35%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: results-fade-in 900ms ease both;
+  background: rgb(255 255 255 / 90%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: results-fade-in 520ms ease both;
 }
 
 .results-card {
@@ -330,12 +335,12 @@ h1 {
   padding: clamp(28px, 6vw, 72px);
   border: 1px solid rgb(255 255 255 / 82%);
   border-radius: 36px 48px 30px 44px;
-  background: rgb(255 255 255 / 78%);
-  box-shadow: 0 30px 100px rgb(0 0 0 / 14%), inset 0 1px 0 rgb(255 255 255 / 94%);
-  backdrop-filter: blur(30px) saturate(1.25);
-  -webkit-backdrop-filter: blur(30px) saturate(1.25);
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 24px 72px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 94%);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
   transform-origin: 88% -10%;
-  animation: slime-warp 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slime-warp 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .results-topline {
@@ -411,52 +416,6 @@ h1 {
   transform: translate(-50%, -50%);
   animation: history-core-pulse 5.6s ease-in-out infinite;
   transform-origin: center;
-}
-
-.moon-orbit {
-  position: absolute;
-  top: 50%;
-  left: var(--repulsion-center-x, 54%);
-  width: var(--repulsion-circle-size, clamp(420px, 42vw, 560px));
-  aspect-ratio: 1;
-  pointer-events: none;
-  transform: translate(-50%, -50%) rotate(var(--moon-angle, 0deg));
-  transition: transform 1500ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: moon-edge-pulse 5.6s ease-in-out infinite;
-  transform-origin: center;
-  will-change: transform, scale;
-}
-
-.moon-dot {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: clamp(8px, 1.1vw, 14px);
-  aspect-ratio: 1;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--ink);
-  box-shadow: 0 0 0.8rem rgb(5 5 5 / 18%);
-  cursor: grab;
-  pointer-events: auto;
-  touch-action: none;
-  transform: translate(
-    calc(-50% + var(--moon-drag-x, 0px)),
-    calc(-50% + var(--moon-drag-y, 0px))
-  );
-  transition: transform 680ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms ease;
-}
-
-.moon-dot.is-dragging {
-  cursor: grabbing;
-  box-shadow: 0 0 1.15rem rgb(5 5 5 / 30%);
-  transition: none;
-}
-
-.moon-dot:focus-visible {
-  outline: 2px solid var(--muted-ink);
-  outline-offset: 4px;
 }
 
 .history-ring {
@@ -611,11 +570,6 @@ h1 {
   }
 }
 
-@keyframes moon-edge-pulse {
-  0%, 100% { scale: 0.97 0.985; }
-  50% { scale: 1.03 1.015; }
-}
-
 @keyframes metrics-arrive {
   from { opacity: 0.2; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -677,9 +631,7 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .results-layer,
   .results-card,
-  .history-orbit::after,
-  .moon-orbit,
-  .moon-dot {
+  .history-orbit::after {
     animation-duration: 1ms;
     animation-iteration-count: 1;
     transition-duration: 1ms;

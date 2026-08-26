@@ -41,12 +41,6 @@ type HistoryDrag = {
   moved: boolean;
 };
 
-type MoonDrag = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-};
-
 const initialValues: TimeValues = {
   day: '',
   month: '',
@@ -56,15 +50,6 @@ const initialValues: TimeValues = {
 };
 
 const fieldOrder: Array<keyof TimeValues> = ['day', 'month', 'year', 'hours', 'minutes'];
-const lunarCycleDays = 29.530588853;
-const lunarReferenceTime = Date.UTC(2000, 0, 6, 18, 14);
-
-function getMoonPhase(date = new Date()) {
-  const elapsedDays = (date.getTime() - lunarReferenceTime) / 86_400_000;
-  const cyclePosition = (elapsedDays % lunarCycleDays) / lunarCycleDays;
-  return cyclePosition < 0 ? cyclePosition + 1 : cyclePosition;
-}
-
 function getDifference(values: TimeValues): TimeDifference | null {
   if (Object.values(values).some((value) => value.length === 0)) {
     return null;
@@ -172,16 +157,12 @@ export default function Home() {
   const [invalidFields, setInvalidFields] = useState<Array<keyof TimeValues>>([]);
   const [repulsionCenterX, setRepulsionCenterX] = useState('54%');
   const [repulsionCircleSize, setRepulsionCircleSize] = useState('clamp(420px, 42vw, 560px)');
-  const [moonPhase, setMoonPhase] = useState(0);
-  const [moonDragOffset, setMoonDragOffset] = useState<HistoryOffset>({ x: 0, y: 0 });
-  const [moonDragging, setMoonDragging] = useState(false);
   const [historyOffsets, setHistoryOffsets] = useState<Record<string, HistoryOffset>>({});
   const [draggingHistoryId, setDraggingHistoryId] = useState<string | null>(null);
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
-  const moonDragRef = useRef<MoonDrag | null>(null);
   const historyDidDragRef = useRef(false);
 
   useEffect(() => {
@@ -235,14 +216,6 @@ export default function Home() {
       observer.disconnect();
     };
   }, [typingTick]);
-
-  useEffect(() => {
-    const updateMoonPhase = () => setMoonPhase(getMoonPhase());
-    updateMoonPhase();
-    const timer = window.setInterval(updateMoonPhase, 60_000);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!showResults) {
@@ -321,46 +294,6 @@ export default function Home() {
     setValues(entry.values);
     setDifference(getDifference(entry.values));
     setShowResults(true);
-  };
-
-  const handleMoonPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    moonDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-    };
-    setMoonDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleMoonPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const drag = moonDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) {
-      return;
-    }
-
-    setMoonDragOffset({
-      x: event.clientX - drag.startX,
-      y: event.clientY - drag.startY,
-    });
-  };
-
-  const handleMoonPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (moonDragRef.current?.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    moonDragRef.current = null;
-    setMoonDragging(false);
-    setMoonDragOffset({ x: 0, y: 0 });
   };
 
   const handleHistoryPointerDown = (entryId: string) => (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -447,7 +380,7 @@ export default function Home() {
   const pageTone = difference ? (difference.isPast ? 'is-past' : 'is-future') : '';
 
   return (
-    <main className={`time-page ${pageTone}`}>
+    <main className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}>
       <div
         className="history-orbit"
         aria-label="Recent time differences"
@@ -455,24 +388,8 @@ export default function Home() {
           '--history-density': Math.min(0.3, 0.06 + history.length * 0.04),
           '--repulsion-center-x': repulsionCenterX,
           '--repulsion-circle-size': repulsionCircleSize,
-          '--moon-angle': `${moonPhase * 360}deg`,
         } as CSSProperties}
       >
-        <div className="moon-orbit">
-          <button
-            aria-label="Drag the moon"
-            className={`moon-dot ${moonDragging ? 'is-dragging' : ''}`}
-            onPointerCancel={handleMoonPointerUp}
-            onPointerDown={handleMoonPointerDown}
-            onPointerMove={handleMoonPointerMove}
-            onPointerUp={handleMoonPointerUp}
-            style={{
-              '--moon-drag-x': `${moonDragOffset.x}px`,
-              '--moon-drag-y': `${moonDragOffset.y}px`,
-            } as CSSProperties}
-            type="button"
-          />
-        </div>
         {history.length > 0 && (
           <div className={`history-ring ${draggingHistoryId ? 'is-dragging' : ''} ${hoveringHistoryId ? 'is-paused' : ''}`}>
             {history.map((entry, index) => {
