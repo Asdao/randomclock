@@ -50,7 +50,7 @@ const initialValues: TimeValues = {
 };
 
 const fieldOrder: Array<keyof TimeValues> = ['day', 'month', 'year', 'hours', 'minutes'];
-function getDifference(values: TimeValues): TimeDifference | null {
+function getDifference(values: TimeValues, now = Date.now()): TimeDifference | null {
   if (Object.values(values).some((value) => value.length === 0)) {
     return null;
   }
@@ -73,7 +73,7 @@ function getDifference(values: TimeValues): TimeDifference | null {
     return null;
   }
 
-  const difference = target.getTime() - Date.now();
+  const difference = target.getTime() - now;
   const absoluteDifference = Math.abs(difference);
   const days = Math.floor(absoluteDifference / 86_400_000);
   const hoursLeft = Math.floor((absoluteDifference % 86_400_000) / 3_600_000);
@@ -153,17 +153,22 @@ export default function Home() {
   const [showResults, setShowResults] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [, setClockTick] = useState(0);
   const [typingTick, setTypingTick] = useState(0);
   const [invalidFields, setInvalidFields] = useState<Array<keyof TimeValues>>([]);
   const [repulsionCenterX, setRepulsionCenterX] = useState('54%');
+  const [repulsionCenterY, setRepulsionCenterY] = useState('42%');
   const [repulsionCircleSize, setRepulsionCircleSize] = useState('clamp(420px, 42vw, 560px)');
+  const [zoom, setZoom] = useState(1);
   const [historyOffsets, setHistoryOffsets] = useState<Record<string, HistoryOffset>>({});
   const [draggingHistoryId, setDraggingHistoryId] = useState<string | null>(null);
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const wormRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
   const historyDidDragRef = useRef(false);
+  const hoveringHistoryIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadHistory = () => {
@@ -202,6 +207,7 @@ export default function Home() {
       const bounds = titleWords.getBoundingClientRect();
       if (bounds.width > 0) {
         setRepulsionCenterX(`${bounds.left + bounds.width / 2}px`);
+        setRepulsionCenterY(`${bounds.top + bounds.height / 2}px`);
         setRepulsionCircleSize(`${Math.min(560, Math.max(420, bounds.width * 1.08))}px`);
       }
     };
@@ -228,6 +234,152 @@ export default function Home() {
 
     return () => window.clearInterval(timer);
   }, [showResults, values]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockTick((tick) => tick + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    type Worm = { x: number; y: number; vx: number; vy: number; targetX: number; targetY: number; seed: number; nextTurn: number; mode: number };
+    let frameId = 0;
+    const startedAt = performance.now();
+    const worms: Worm[] = history.map((entry, index) => {
+      const seed = entry.id.split('').reduce((sum, character) => sum + character.charCodeAt(0), index * 17);
+      const angle = (seed % 360) * (Math.PI / 180);
+      return {
+        x: Math.cos(angle) * 260,
+        y: Math.sin(angle) * 150,
+        vx: 0,
+        vy: 0,
+        targetX: 0,
+        targetY: 0,
+        seed,
+        nextTurn: 0,
+        mode: index % 4,
+      };
+    });
+
+    const chooseTarget = (worm: Worm, index: number, safeRadius: number) => {
+      const random = Math.abs(Math.sin(worm.seed + performance.now() * 0.0001));
+      const angle = random * Math.PI * 2 + index * 0.83;
+      const distance = safeRadius + Math.min(window.innerWidth, window.innerHeight) * (0.18 + random * 0.16);
+      worm.targetX = Math.cos(angle) * distance;
+      worm.targetY = Math.sin(angle) * distance * 0.72;
+      worm.nextTurn = performance.now() + 8000 + random * 6000;
+    };
+
+    const animateWorms = (timestamp: number) => {
+      const titleBounds = titleWordsRef.current?.getBoundingClientRect();
+      const elapsed = (timestamp - startedAt) / 1000;
+      const safeRadius = Math.max(180, Math.min(260, titleBounds?.width ? titleBounds.width * 0.55 : 210));
+
+      worms.forEach((worm, index) => {
+        const element = wormRefs.current[history[index]?.id ?? ''];
+        if (!element) return;
+        if (hoveringHistoryIdRef.current === history[index]?.id) return;
+
+        const distanceToTarget = Math.hypot(worm.targetX - worm.x, worm.targetY - worm.y);
+        if (distanceToTarget < 25 && performance.now() > worm.nextTurn) chooseTarget(worm, index, safeRadius);
+
+        const driftX = Math.sin(elapsed * (0.45 + index * 0.08) + worm.seed) * 0.025;
+        const driftY = Math.cos(elapsed * (0.38 + index * 0.06) + worm.seed) * 0.025;
+        const movementX = worm.mode === 1
+          ? Math.sin(elapsed * 0.46 + worm.seed) * 0.12
+          : worm.mode === 2
+            ? Math.cos(elapsed * 0.28 + worm.seed) * 0.09
+            : worm.mode === 3
+              ? -worm.y * 0.00045
+              : 0;
+        const movementY = worm.mode === 1
+          ? Math.cos(elapsed * 0.46 + worm.seed) * 0.08
+          : worm.mode === 2
+            ? Math.sin(elapsed * 0.28 + worm.seed) * 0.12
+            : worm.mode === 3
+              ? worm.x * 0.00045
+              : 0;
+        worm.vx += (worm.targetX - worm.x) * 0.00025 + driftX + movementX;
+        worm.vy += (worm.targetY - worm.y) * 0.00025 + driftY + movementY;
+
+        const centralDistance = Math.hypot(worm.x, worm.y);
+        if (centralDistance < safeRadius) {
+          const push = (safeRadius - centralDistance) * 0.018;
+          worm.vx += (worm.x / centralDistance || 1) * push;
+          worm.vy += (worm.y / centralDistance || 0) * push;
+        }
+
+        const speed = Math.hypot(worm.vx, worm.vy);
+        if (speed > 1.05) {
+          worm.vx = (worm.vx / speed) * 1.05;
+          worm.vy = (worm.vy / speed) * 1.05;
+        }
+        worm.x += worm.vx;
+        worm.y += worm.vy;
+
+        const updatedCentralDistance = Math.hypot(worm.x, worm.y);
+        if (updatedCentralDistance < safeRadius + 8) {
+          const escapeScale = (safeRadius + 8) / (updatedCentralDistance || 1);
+          worm.x *= escapeScale;
+          worm.y *= escapeScale;
+          worm.vx *= 0.45;
+          worm.vy *= 0.45;
+        }
+
+        worm.vx *= 0.992;
+        worm.vy *= 0.992;
+
+        const heading = Math.atan2(worm.vy, worm.vx) * (180 / Math.PI);
+        element.style.setProperty('--worm-x', `${worm.x}px`);
+        element.style.setProperty('--worm-y', `${worm.y}px`);
+        element.style.setProperty('--worm-rotation', `${heading + 90}deg`);
+
+        const chip = element.querySelector<HTMLElement>('.history-chip');
+        const displayBounds = document.querySelector<HTMLElement>('.time-display')?.getBoundingClientRect();
+        const chipBounds = chip?.getBoundingClientRect();
+        const overlapsDisplay = Boolean(
+          chipBounds && displayBounds &&
+          chipBounds.right > displayBounds.left &&
+          chipBounds.left < displayBounds.right &&
+          chipBounds.bottom > displayBounds.top &&
+          chipBounds.top < displayBounds.bottom,
+        );
+        if (chip && displayBounds && chipBounds) {
+          const chipCenterX = chipBounds.left + chipBounds.width / 2;
+          const chipCenterY = chipBounds.top + chipBounds.height / 2;
+          const distanceX = Math.max(displayBounds.left - chipCenterX, 0, chipCenterX - displayBounds.right);
+          const distanceY = Math.max(displayBounds.top - chipCenterY, 0, chipCenterY - displayBounds.bottom);
+          const distanceToDisplay = Math.hypot(distanceX, distanceY);
+          const fade = Math.max(0, Math.min(45, ((90 - distanceToDisplay) / 90) * 45));
+          chip.style.setProperty('--worm-fade-percent', `${fade}%`);
+        }
+        chip?.classList.toggle('is-behind', overlapsDisplay);
+      });
+
+      // Softly separate neighboring text-worms without snapping their paths.
+      for (let pass = 0; pass < 2; pass += 1) {
+        worms.forEach((worm, index) => {
+          worms.slice(index + 1).forEach((other) => {
+            const dx = other.x - worm.x;
+            const dy = other.y - worm.y;
+            const distance = Math.hypot(dx, dy) || 1;
+            const minimumDistance = 110 + (index % 3) * 18;
+            if (distance >= minimumDistance) return;
+            const push = (minimumDistance - distance) / distance * 0.018;
+            worm.vx -= dx * push;
+            worm.vy -= dy * push;
+            other.vx += dx * push;
+            other.vy += dy * push;
+          });
+        });
+      }
+
+      frameId = window.requestAnimationFrame(animateWorms);
+    };
+
+    worms.forEach((worm, index) => chooseTarget(worm, index, 210));
+    frameId = window.requestAnimationFrame(animateWorms);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [history]);
 
   const updateValue = (field: keyof TimeValues, maxLength: number, nextIndex?: number) => (
     event: ChangeEvent<HTMLInputElement>,
@@ -377,16 +529,31 @@ export default function Home() {
     restoreHistory(entry);
   };
 
+  const handleSceneWheel = (event: React.WheelEvent<HTMLElement>) => {
+    // Browsers expose trackpad pinch gestures as ctrl+wheel events.
+    if (!event.ctrlKey) {
+      return;
+    }
+
+    event.preventDefault();
+    setZoom((currentZoom) => Math.min(3, Math.max(0.25, currentZoom * Math.exp(-event.deltaY * 0.002))));
+  };
+
   const pageTone = difference ? (difference.isPast ? 'is-past' : 'is-future') : '';
 
   return (
-    <main className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}>
+    <main
+      className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}
+      onWheel={handleSceneWheel}
+      style={{ '--interface-zoom': zoom } as CSSProperties}
+    >
       <div
         className="history-orbit"
         aria-label="Recent time differences"
         style={{
           '--history-density': Math.min(0.3, 0.06 + history.length * 0.04),
           '--repulsion-center-x': repulsionCenterX,
+          '--repulsion-center-y': repulsionCenterY,
           '--repulsion-circle-size': repulsionCircleSize,
         } as CSSProperties}
       >
@@ -396,34 +563,59 @@ export default function Home() {
               const angle = -90 + (index * 360) / Math.max(history.length, 1);
               const offset = historyOffsets[entry.id] ?? { x: 0, y: 0 };
               const entryDifference = getDifference(entry.values);
-              const historySize = `${Math.max(0.72, 1.22 - index * 0.09)}rem`;
-              const historyWeight = Math.max(500, 900 - index * 80);
+              const historySize = index < 2
+                ? `${72 - index * 24}px`
+                : `${Math.max(0.62, 1.08 - index * 0.07)}rem`;
+              const historyWeight = index < 2 ? 500 : Math.max(500, 900 - index * 80);
+              const isExpanding = index === 0 || index === 2;
+              const isStill = index === 1 || index === 4;
+              const expandedSize = index === 0 ? '96px' : '72px';
+              const snakeAmplitude = [0.18, 0, 0.82, 0.38, 0, 0.62][index % 6];
+              const snakeAngle = [4, 0, 14, 7, 0, 10][index % 6];
               const orbitStyle = {
                 '--orbit-angle': `${angle}deg`,
                 '--orbit-counter-angle': `${-angle}deg`,
-                '--orbit-radius': 'clamp(330px, 40vw, 580px)',
-                '--orbit-duration': '34s',
+                '--orbit-radius': 'clamp(120px, 32vw, 580px)',
+                '--orbit-duration': `${32 + index * 2}s`,
                 '--drag-x': `${offset.x}px`,
                 '--drag-y': `${offset.y}px`,
+                '--snake-rise': `${-0.38 * snakeAmplitude}em`,
+                '--snake-fall': `${0.28 * snakeAmplitude}em`,
+                '--snake-mid': `${-0.2 * snakeAmplitude}em`,
+                '--snake-angle': `${snakeAngle}deg`,
+                '--snake-angle-negative': `${-snakeAngle}deg`,
+                '--snake-duration': `${1.15 + (index % 4) * 0.22}s`,
               } as CSSProperties;
 
               return (
-                <div className="history-planet" key={entry.id} style={orbitStyle}>
+                <div
+                  className="history-planet"
+                  key={entry.id}
+                  ref={(element) => { wormRefs.current[entry.id] = element; }}
+                  style={orbitStyle}
+                >
                   <button
                     aria-label={`Open ${formatHistoryLabel(entry.values)}`}
-                    className={`history-chip ${entryDifference?.isPast ? 'history-past' : 'history-future'} ${draggingHistoryId === entry.id ? 'is-dragging' : ''}`}
+                    className={`history-chip ${entryDifference?.isPast ? 'history-past' : 'history-future'} ${isExpanding ? 'is-expanding' : ''} ${isStill ? 'is-still' : ''} ${draggingHistoryId === entry.id ? 'is-dragging' : ''}`}
                     onClick={() => handleHistoryClick(entry)}
                     onPointerCancel={handleHistoryPointerUp}
                     onPointerDown={handleHistoryPointerDown(entry.id)}
                     onPointerMove={handleHistoryPointerMove}
                     onPointerUp={handleHistoryPointerUp}
-                    onMouseEnter={() => setHoveringHistoryId(entry.id)}
-                    onMouseLeave={() => setHoveringHistoryId(null)}
+                    onMouseEnter={() => {
+                      hoveringHistoryIdRef.current = entry.id;
+                      setHoveringHistoryId(entry.id);
+                    }}
+                    onMouseLeave={() => {
+                      hoveringHistoryIdRef.current = null;
+                      setHoveringHistoryId(null);
+                    }}
                     style={{
                       '--drag-x': `${offset.x}px`,
                       '--drag-y': `${offset.y}px`,
                       '--history-size': historySize,
                       '--history-weight': historyWeight,
+                      '--expanded-size': expandedSize,
                     } as CSSProperties}
                     type="button"
                   >
