@@ -165,6 +165,8 @@ export default function Home() {
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const wormRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const zoomRef = useRef(1);
+  const zoomFrameRef = useRef<number | null>(null);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
   const historyDidDragRef = useRef(false);
@@ -530,13 +532,18 @@ export default function Home() {
   };
 
   const handleSceneWheel = (event: React.WheelEvent<HTMLElement>) => {
-    // Browsers expose trackpad pinch gestures as ctrl+wheel events.
-    if (!event.ctrlKey) {
+    if (event.deltaY === 0) {
       return;
     }
 
     event.preventDefault();
-    setZoom((currentZoom) => Math.min(3, Math.max(0.25, currentZoom * Math.exp(-event.deltaY * 0.002))));
+    zoomRef.current = Math.min(3, Math.max(0.25, zoomRef.current * Math.exp(-event.deltaY * 0.002)));
+    if (zoomFrameRef.current === null) {
+      zoomFrameRef.current = window.requestAnimationFrame(() => {
+        zoomFrameRef.current = null;
+        setZoom(zoomRef.current);
+      });
+    }
   };
 
   const pageTone = difference ? (difference.isPast ? 'is-past' : 'is-future') : '';

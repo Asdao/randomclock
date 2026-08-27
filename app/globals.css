@@ -69,6 +69,7 @@ body {
   display: grid;
   place-items: center;
   overflow: hidden;
+  overscroll-behavior: none;
   padding: 48px;
   background: var(--background);
   transition: background 700ms ease;
@@ -116,6 +117,7 @@ body {
   text-align: right;
   transform: translateX(calc(-1 * clamp(0px, 4vw, 48px))) scale(var(--interface-zoom, 1));
   transform-origin: center center;
+  will-change: transform;
 }
 
 h1,
