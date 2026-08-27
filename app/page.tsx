@@ -164,10 +164,6 @@ export default function Home() {
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const wormRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const zoomRef = useRef(1);
-  const zoomFrameRef = useRef<number | null>(null);
-  const zoomEndTimerRef = useRef<number | null>(null);
-  const sceneRef = useRef<HTMLElement | null>(null);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const timeDisplayRef = useRef<HTMLElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
@@ -477,44 +473,14 @@ export default function Home() {
     restoreHistory(entry);
   };
 
-  const handleSceneWheel = (event: React.WheelEvent<HTMLElement>) => {
-    if (event.deltaY === 0) {
-      return;
-    }
-
-    event.preventDefault();
-    sceneRef.current?.classList.add('is-zooming');
-    if (zoomEndTimerRef.current !== null) {
-      window.clearTimeout(zoomEndTimerRef.current);
-    }
-    zoomEndTimerRef.current = window.setTimeout(() => {
-      sceneRef.current?.classList.remove('is-zooming');
-      zoomEndTimerRef.current = null;
-    }, 160);
-    zoomRef.current = Math.min(3, Math.max(0.25, zoomRef.current * Math.exp(-event.deltaY * 0.002)));
-    if (zoomFrameRef.current === null) {
-      zoomFrameRef.current = window.requestAnimationFrame(() => {
-        zoomFrameRef.current = null;
-        sceneRef.current?.style.setProperty('--interface-zoom', `${zoomRef.current}`);
-      });
-    }
-  };
-
   const pageTone = difference ? (difference.isPast ? 'is-past' : 'is-future') : '';
 
   return (
     <main
       className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}
-      onWheel={handleSceneWheel}
     >
       <div
         className="scene-layer"
-        ref={sceneRef}
-        style={{
-          '--interface-zoom': 1,
-          '--scene-center-x': repulsionCenterX,
-          '--scene-center-y': repulsionCenterY,
-        } as CSSProperties}
       >
         <div
         className="history-orbit"

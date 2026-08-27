@@ -114,10 +114,6 @@ body {
   display: grid;
   place-items: center;
   z-index: 0;
-  transform: scale(var(--interface-zoom, 1));
-  transform-origin: var(--scene-center-x, 54%) var(--scene-center-y, 42%);
-  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
 }
 
 .time-display {
@@ -454,10 +450,6 @@ h1 {
   left: 50%;
   transform: translate(calc(-50% + var(--worm-x, 0px)), calc(-50% + var(--worm-y, 0px))) rotate(var(--worm-rotation, 0deg));
   will-change: transform;
-}
-
-.scene-layer.is-zooming .history-planet {
-  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .history-chip {
