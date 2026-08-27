@@ -5,7 +5,8 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/roboto-mono-400.ttf') format('truetype');
+  src: url('/randomclock/fonts/roboto-mono-400.ttf') format('truetype'),
+    url('/fonts/roboto-mono-400.ttf') format('truetype');
 }
 
 @font-face {
@@ -13,7 +14,8 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('/fonts/roboto-mono-500.ttf') format('truetype');
+  src: url('/randomclock/fonts/roboto-mono-500.ttf') format('truetype'),
+    url('/fonts/roboto-mono-500.ttf') format('truetype');
 }
 
 @font-face {
@@ -21,7 +23,8 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/rubik-mono-one-400.ttf') format('truetype');
+  src: url('/randomclock/fonts/rubik-mono-one-400.ttf') format('truetype'),
+    url('/fonts/rubik-mono-one-400.ttf') format('truetype');
 }
 
 :root {
