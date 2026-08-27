@@ -104,9 +104,20 @@ body {
   background: radial-gradient(circle at 50% 42%, rgb(255 255 255 / 0%) 0 30%, rgb(255 222 218 / 34%) 100%);
 }
 
-.time-page.has-results > .history-orbit,
-.time-page.has-results > .time-display {
+.time-page.has-results .scene-layer {
   display: none;
+}
+
+.scene-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 0;
+  transform: scale(var(--interface-zoom, 1));
+  transform-origin: var(--scene-center-x, 54%) var(--scene-center-y, 42%);
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
 }
 
 .time-display {
@@ -115,9 +126,6 @@ body {
   width: min(100%, 860px);
   margin-top: -8vh;
   text-align: right;
-  transform: translateX(calc(-1 * clamp(0px, 4vw, 48px))) scale(var(--interface-zoom, 1));
-  transform-origin: center center;
-  will-change: transform;
 }
 
 h1,
@@ -134,7 +142,7 @@ h1 {
   font-weight: 400;
   letter-spacing: -0.1em;
   line-height: 0.95;
-  text-align: right;
+  text-align: center;
   word-spacing: -0.18em;
 }
 
@@ -160,10 +168,10 @@ h1 {
 .date-time {
   display: flex;
   align-items: baseline;
-  justify-content: flex-end;
+  justify-content: center;
   width: 100%;
   margin-top: clamp(24px, 4vw, 48px);
-  margin-left: auto;
+  margin-left: 0;
   margin-right: 0;
   color: var(--line);
   font-size: clamp(2rem, 6vw, 4.5rem);
@@ -188,7 +196,8 @@ h1 {
   gap: 0.65rem clamp(0.45rem, 1.5vw, 0.8rem);
   width: 100%;
   margin-top: 18px;
-  padding-inline: 0.25rem;
+  padding-left: 0.25rem;
+  padding-right: clamp(2rem, 8vw, 4.5rem);
 }
 
 .slot-group {
@@ -414,8 +423,6 @@ h1 {
   inset: 0;
   overflow: visible;
   pointer-events: none;
-  transform: scale(var(--interface-zoom, 1));
-  transform-origin: center center;
 }
 
 .history-orbit::before {
@@ -449,6 +456,10 @@ h1 {
   will-change: transform;
 }
 
+.scene-layer.is-zooming .history-planet {
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .history-chip {
   position: absolute;
   top: 50%;
@@ -457,7 +468,9 @@ h1 {
   border: 0;
   background: transparent;
   color: color-mix(in srgb, #303030, white var(--worm-fade-percent, 0%));
-  font: inherit;
+  font-family: var(--history-font, inherit);
+  font-style: normal;
+  font-variant: normal;
   font-size: var(--history-size, clamp(0.62rem, 1.1vw, 0.82rem));
   font-weight: var(--history-weight, 400);
   letter-spacing: 0.04em;
@@ -705,6 +718,7 @@ h1 {
     animation-duration: 1ms;
     animation-iteration-count: 1;
   }
+
 }
 
 @media (max-width: 420px) {
@@ -713,7 +727,7 @@ h1 {
   }
 
   .time-display {
-    transform: scale(var(--interface-zoom, 1));
+    transform: translateX(0);
   }
 
   .date-time {

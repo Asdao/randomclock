@@ -166,6 +166,7 @@ export default function Home() {
   const wormRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const zoomRef = useRef(1);
   const zoomFrameRef = useRef<number | null>(null);
+  const zoomEndTimerRef = useRef<number | null>(null);
   const sceneRef = useRef<HTMLElement | null>(null);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
@@ -466,6 +467,14 @@ export default function Home() {
     }
 
     event.preventDefault();
+    sceneRef.current?.classList.add('is-zooming');
+    if (zoomEndTimerRef.current !== null) {
+      window.clearTimeout(zoomEndTimerRef.current);
+    }
+    zoomEndTimerRef.current = window.setTimeout(() => {
+      sceneRef.current?.classList.remove('is-zooming');
+      zoomEndTimerRef.current = null;
+    }, 160);
     zoomRef.current = Math.min(3, Math.max(0.25, zoomRef.current * Math.exp(-event.deltaY * 0.002)));
     if (zoomFrameRef.current === null) {
       zoomFrameRef.current = window.requestAnimationFrame(() => {
@@ -481,10 +490,17 @@ export default function Home() {
     <main
       className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}
       onWheel={handleSceneWheel}
-      ref={sceneRef}
-      style={{ '--interface-zoom': 1 } as CSSProperties}
     >
       <div
+        className="scene-layer"
+        ref={sceneRef}
+        style={{
+          '--interface-zoom': 1,
+          '--scene-center-x': repulsionCenterX,
+          '--scene-center-y': repulsionCenterY,
+        } as CSSProperties}
+      >
+        <div
         className="history-orbit"
         aria-label="Recent time differences"
         style={{
@@ -493,7 +509,7 @@ export default function Home() {
           '--repulsion-center-y': repulsionCenterY,
           '--repulsion-circle-size': repulsionCircleSize,
         } as CSSProperties}
-      >
+        >
         {history.length > 0 && (
           <div className={`history-ring ${draggingHistoryId ? 'is-dragging' : ''} ${hoveringHistoryId ? 'is-paused' : ''}`}>
             {history.map((entry, index) => {
@@ -509,6 +525,14 @@ export default function Home() {
               const expandedSize = index === 0 ? '96px' : '72px';
               const snakeAmplitude = [0.18, 0, 0.82, 0.38, 0, 0.62][index % 6];
               const snakeAngle = [4, 0, 14, 7, 0, 10][index % 6];
+              const historyFonts = [
+                "'Arial Black', Arial, sans-serif",
+                'Georgia, serif',
+                'Impact, Haettenschweiler, sans-serif',
+                "'Trebuchet MS', sans-serif",
+                "'Courier New', monospace",
+                'Verdana, sans-serif',
+              ];
               const orbitStyle = {
                 '--orbit-angle': `${angle}deg`,
                 '--orbit-counter-angle': `${-angle}deg`,
@@ -553,6 +577,7 @@ export default function Home() {
                       '--history-size': historySize,
                       '--history-weight': historyWeight,
                       '--expanded-size': expandedSize,
+                      '--history-font': historyFonts[index % historyFonts.length],
                     } as CSSProperties}
                     type="button"
                   >
@@ -563,8 +588,8 @@ export default function Home() {
             })}
           </div>
         )}
-      </div>
-      <section className="time-display" aria-labelledby="time-title">
+        </div>
+        <section className="time-display" aria-labelledby="time-title">
         <h1 id="time-title">
           <span className="title-words" ref={titleWordsRef}>
             from <span className="now-word" key={typingTick}>now</span><span className="end-dot" aria-hidden="true">.</span>
@@ -671,7 +696,8 @@ export default function Home() {
             </button>
           </div>
         </form>
-      </section>
+        </section>
+      </div>
 
       {showResults && (
         <div className="results-layer" role="dialog" aria-modal="true" aria-labelledby="results-title">
