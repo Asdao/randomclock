@@ -169,6 +169,7 @@ export default function Home() {
   const zoomEndTimerRef = useRef<number | null>(null);
   const sceneRef = useRef<HTMLElement | null>(null);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
+  const timeDisplayRef = useRef<HTMLElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
   const historyDidDragRef = useRef(false);
   const hoveringHistoryIdRef = useRef<string | null>(null);
@@ -245,9 +246,24 @@ export default function Home() {
 
   useEffect(() => {
     type WormFormula = { seed: number; phase: number; speed: number; radius: number; eccentricity: number; mode: number; direction: number };
+    type DisplayBounds = { left: number; right: number; top: number; bottom: number };
     let frameId = 0;
     let frameCount = 0;
     const startedAt = performance.now();
+    const layout = { titleWidth: 0, displayBounds: null as DisplayBounds | null };
+    const updateLayout = () => {
+      const titleBounds = titleWordsRef.current?.getBoundingClientRect();
+      const displayBounds = timeDisplayRef.current?.getBoundingClientRect();
+      layout.titleWidth = titleBounds?.width ?? 0;
+      layout.displayBounds = displayBounds
+        ? { left: displayBounds.left, right: displayBounds.right, top: displayBounds.top, bottom: displayBounds.bottom }
+        : null;
+    };
+    const resizeObserver = new ResizeObserver(updateLayout);
+    if (titleWordsRef.current) resizeObserver.observe(titleWordsRef.current);
+    if (timeDisplayRef.current) resizeObserver.observe(timeDisplayRef.current);
+    updateLayout();
+
     const worms: WormFormula[] = history.map((entry, index) => {
       const seed = entry.id.split('').reduce((sum, character) => sum + character.charCodeAt(0), index * 17);
       return {
@@ -262,12 +278,9 @@ export default function Home() {
     });
 
     const animateWorms = (timestamp: number) => {
-      const titleBounds = titleWordsRef.current?.getBoundingClientRect();
       const elapsed = (timestamp - startedAt) / 1000;
-      const safeRadius = Math.max(180, Math.min(260, titleBounds?.width ? titleBounds.width * 0.55 : 210));
-      const displayBounds = frameCount % 6 === 0
-        ? document.querySelector<HTMLElement>('.time-display')?.getBoundingClientRect()
-        : undefined;
+      const safeRadius = Math.max(180, Math.min(260, layout.titleWidth ? layout.titleWidth * 0.55 : 210));
+      const displayBounds = frameCount % 6 === 0 ? layout.displayBounds : undefined;
       frameCount += 1;
 
       worms.forEach((worm, index) => {
@@ -310,7 +323,10 @@ export default function Home() {
     };
 
     frameId = window.requestAnimationFrame(animateWorms);
-    return () => window.cancelAnimationFrame(frameId);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+    };
   }, [history]);
 
   const updateValue = (field: keyof TimeValues, maxLength: number, nextIndex?: number) => (
@@ -523,6 +539,7 @@ export default function Home() {
               const isExpanding = index === 0 || index === 2;
               const isStill = index === 1 || index === 4;
               const expandedSize = index === 0 ? '96px' : '72px';
+              const expandedScale = index === 0 ? 1.33 : 4.5;
               const snakeAmplitude = [0.18, 0, 0.82, 0.38, 0, 0.62][index % 6];
               const snakeAngle = [4, 0, 14, 7, 0, 10][index % 6];
               const historyFonts = [
@@ -577,6 +594,7 @@ export default function Home() {
                       '--history-size': historySize,
                       '--history-weight': historyWeight,
                       '--expanded-size': expandedSize,
+                      '--expanded-scale': expandedScale,
                       '--history-font': historyFonts[index % historyFonts.length],
                     } as CSSProperties}
                     type="button"
@@ -589,7 +607,7 @@ export default function Home() {
           </div>
         )}
         </div>
-        <section className="time-display" aria-labelledby="time-title">
+        <section className="time-display" ref={timeDisplayRef} aria-labelledby="time-title">
         <h1 id="time-title">
           <span className="title-words" ref={titleWordsRef}>
             from <span className="now-word" key={typingTick}>now</span><span className="end-dot" aria-hidden="true">.</span>

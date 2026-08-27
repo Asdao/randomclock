@@ -636,8 +636,8 @@ h1 {
 }
 
 @keyframes worm-size-breathe {
-  0%, 100% { font-size: var(--history-size); }
-  50% { font-size: var(--expanded-size); }
+  0%, 100% { scale: 1; }
+  50% { scale: var(--expanded-scale, 1.33); }
 }
 
 @keyframes body-pulse {
