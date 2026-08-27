@@ -243,142 +243,71 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    type Worm = { x: number; y: number; vx: number; vy: number; targetX: number; targetY: number; seed: number; nextTurn: number; mode: number };
+    type WormFormula = { seed: number; phase: number; speed: number; radius: number; eccentricity: number; mode: number; direction: number };
     let frameId = 0;
+    let frameCount = 0;
     const startedAt = performance.now();
-    const worms: Worm[] = history.map((entry, index) => {
+    const worms: WormFormula[] = history.map((entry, index) => {
       const seed = entry.id.split('').reduce((sum, character) => sum + character.charCodeAt(0), index * 17);
-      const angle = (seed % 360) * (Math.PI / 180);
       return {
-        x: Math.cos(angle) * 260,
-        y: Math.sin(angle) * 150,
-        vx: 0,
-        vy: 0,
-        targetX: 0,
-        targetY: 0,
         seed,
-        nextTurn: 0,
+        phase: (seed % 360) * (Math.PI / 180),
+        speed: 0.075 + (index % 4) * 0.018,
+        radius: 230 + (index % 5) * 32,
+        eccentricity: 0.08 + (index % 4) * 0.035,
         mode: index % 4,
+        direction: getDifference(entry.values)?.isPast ? -1 : 1,
       };
     });
-
-    const chooseTarget = (worm: Worm, index: number, safeRadius: number) => {
-      const random = Math.abs(Math.sin(worm.seed + performance.now() * 0.0001));
-      const angle = random * Math.PI * 2 + index * 0.83;
-      const distance = safeRadius + Math.min(window.innerWidth, window.innerHeight) * (0.18 + random * 0.16);
-      worm.targetX = Math.cos(angle) * distance;
-      worm.targetY = Math.sin(angle) * distance * 0.72;
-      worm.nextTurn = performance.now() + 8000 + random * 6000;
-    };
 
     const animateWorms = (timestamp: number) => {
       const titleBounds = titleWordsRef.current?.getBoundingClientRect();
       const elapsed = (timestamp - startedAt) / 1000;
       const safeRadius = Math.max(180, Math.min(260, titleBounds?.width ? titleBounds.width * 0.55 : 210));
+      const displayBounds = frameCount % 6 === 0
+        ? document.querySelector<HTMLElement>('.time-display')?.getBoundingClientRect()
+        : undefined;
+      frameCount += 1;
 
       worms.forEach((worm, index) => {
         const element = wormRefs.current[history[index]?.id ?? ''];
-        if (!element) return;
-        if (hoveringHistoryIdRef.current === history[index]?.id) return;
+        if (!element || hoveringHistoryIdRef.current === history[index]?.id) return;
 
-        const distanceToTarget = Math.hypot(worm.targetX - worm.x, worm.targetY - worm.y);
-        if (distanceToTarget < 25 && performance.now() > worm.nextTurn) chooseTarget(worm, index, safeRadius);
+        const radius = Math.max(safeRadius + 56, worm.radius);
+        const theta = worm.phase + elapsed * worm.speed * worm.direction;
+        const orbitalRadius = radius * (1 - worm.eccentricity ** 2) / (1 + worm.eccentricity * Math.cos(theta));
+        const wave = Math.sin(elapsed * (0.31 + worm.mode * 0.08) + worm.seed) * 24;
+        const crossWave = Math.cos(elapsed * (0.23 + worm.mode * 0.05) + worm.seed) * 18;
+        const x = orbitalRadius * Math.cos(theta) + (worm.mode === 1 ? wave : worm.mode === 3 ? crossWave : 0);
+        const y = orbitalRadius * Math.sin(theta) * 0.72 + (worm.mode === 2 ? wave : worm.mode === 3 ? crossWave : 0);
+        const nextTheta = theta + 0.01;
+        const nextX = orbitalRadius * Math.cos(nextTheta);
+        const nextY = orbitalRadius * Math.sin(nextTheta) * 0.72;
+        const heading = Math.atan2(nextY - y, nextX - x) * (180 / Math.PI);
 
-        const driftX = Math.sin(elapsed * (0.45 + index * 0.08) + worm.seed) * 0.025;
-        const driftY = Math.cos(elapsed * (0.38 + index * 0.06) + worm.seed) * 0.025;
-        const movementX = worm.mode === 1
-          ? Math.sin(elapsed * 0.46 + worm.seed) * 0.12
-          : worm.mode === 2
-            ? Math.cos(elapsed * 0.28 + worm.seed) * 0.09
-            : worm.mode === 3
-              ? -worm.y * 0.00045
-              : 0;
-        const movementY = worm.mode === 1
-          ? Math.cos(elapsed * 0.46 + worm.seed) * 0.08
-          : worm.mode === 2
-            ? Math.sin(elapsed * 0.28 + worm.seed) * 0.12
-            : worm.mode === 3
-              ? worm.x * 0.00045
-              : 0;
-        worm.vx += (worm.targetX - worm.x) * 0.00025 + driftX + movementX;
-        worm.vy += (worm.targetY - worm.y) * 0.00025 + driftY + movementY;
-
-        const centralDistance = Math.hypot(worm.x, worm.y);
-        if (centralDistance < safeRadius) {
-          const push = (safeRadius - centralDistance) * 0.018;
-          worm.vx += (worm.x / centralDistance || 1) * push;
-          worm.vy += (worm.y / centralDistance || 0) * push;
-        }
-
-        const speed = Math.hypot(worm.vx, worm.vy);
-        if (speed > 1.05) {
-          worm.vx = (worm.vx / speed) * 1.05;
-          worm.vy = (worm.vy / speed) * 1.05;
-        }
-        worm.x += worm.vx;
-        worm.y += worm.vy;
-
-        const updatedCentralDistance = Math.hypot(worm.x, worm.y);
-        if (updatedCentralDistance < safeRadius + 8) {
-          const escapeScale = (safeRadius + 8) / (updatedCentralDistance || 1);
-          worm.x *= escapeScale;
-          worm.y *= escapeScale;
-          worm.vx *= 0.45;
-          worm.vy *= 0.45;
-        }
-
-        worm.vx *= 0.992;
-        worm.vy *= 0.992;
-
-        const heading = Math.atan2(worm.vy, worm.vx) * (180 / Math.PI);
-        element.style.setProperty('--worm-x', `${worm.x}px`);
-        element.style.setProperty('--worm-y', `${worm.y}px`);
+        element.style.setProperty('--worm-x', `${x}px`);
+        element.style.setProperty('--worm-y', `${y}px`);
         element.style.setProperty('--worm-rotation', `${heading + 90}deg`);
 
-        const chip = element.querySelector<HTMLElement>('.history-chip');
-        const displayBounds = document.querySelector<HTMLElement>('.time-display')?.getBoundingClientRect();
-        const chipBounds = chip?.getBoundingClientRect();
-        const overlapsDisplay = Boolean(
-          chipBounds && displayBounds &&
-          chipBounds.right > displayBounds.left &&
-          chipBounds.left < displayBounds.right &&
-          chipBounds.bottom > displayBounds.top &&
-          chipBounds.top < displayBounds.bottom,
-        );
-        if (chip && displayBounds && chipBounds) {
-          const chipCenterX = chipBounds.left + chipBounds.width / 2;
-          const chipCenterY = chipBounds.top + chipBounds.height / 2;
-          const distanceX = Math.max(displayBounds.left - chipCenterX, 0, chipCenterX - displayBounds.right);
-          const distanceY = Math.max(displayBounds.top - chipCenterY, 0, chipCenterY - displayBounds.bottom);
-          const distanceToDisplay = Math.hypot(distanceX, distanceY);
-          const fade = Math.max(0, Math.min(45, ((90 - distanceToDisplay) / 90) * 45));
-          chip.style.setProperty('--worm-fade-percent', `${fade}%`);
+        if (displayBounds && frameCount % 6 === 1) {
+          const chip = element.querySelector<HTMLElement>('.history-chip');
+          const chipBounds = chip?.getBoundingClientRect();
+          if (chip && chipBounds) {
+            const chipCenterX = chipBounds.left + chipBounds.width / 2;
+            const chipCenterY = chipBounds.top + chipBounds.height / 2;
+            const distanceX = Math.max(displayBounds.left - chipCenterX, 0, chipCenterX - displayBounds.right);
+            const distanceY = Math.max(displayBounds.top - chipCenterY, 0, chipCenterY - displayBounds.bottom);
+            const distanceToDisplay = Math.hypot(distanceX, distanceY);
+            const fade = Math.max(0, Math.min(45, ((90 - distanceToDisplay) / 90) * 45));
+            chip.style.setProperty('--worm-fade-percent', `${fade}%`);
+            chip.classList.toggle('is-behind', chipBounds.right > displayBounds.left && chipBounds.left < displayBounds.right && chipBounds.bottom > displayBounds.top && chipBounds.top < displayBounds.bottom);
+          }
         }
-        chip?.classList.toggle('is-behind', overlapsDisplay);
       });
-
-      // Softly separate neighboring text-worms without snapping their paths.
-      for (let pass = 0; pass < 2; pass += 1) {
-        worms.forEach((worm, index) => {
-          worms.slice(index + 1).forEach((other) => {
-            const dx = other.x - worm.x;
-            const dy = other.y - worm.y;
-            const distance = Math.hypot(dx, dy) || 1;
-            const minimumDistance = 110 + (index % 3) * 18;
-            if (distance >= minimumDistance) return;
-            const push = (minimumDistance - distance) / distance * 0.018;
-            worm.vx -= dx * push;
-            worm.vy -= dy * push;
-            other.vx += dx * push;
-            other.vy += dy * push;
-          });
-        });
-      }
 
       frameId = window.requestAnimationFrame(animateWorms);
     };
 
-    worms.forEach((worm, index) => chooseTarget(worm, index, 210));
     frameId = window.requestAnimationFrame(animateWorms);
     return () => window.cancelAnimationFrame(frameId);
   }, [history]);
