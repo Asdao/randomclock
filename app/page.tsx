@@ -159,7 +159,6 @@ export default function Home() {
   const [repulsionCenterX, setRepulsionCenterX] = useState('54%');
   const [repulsionCenterY, setRepulsionCenterY] = useState('42%');
   const [repulsionCircleSize, setRepulsionCircleSize] = useState('clamp(420px, 42vw, 560px)');
-  const [zoom, setZoom] = useState(1);
   const [historyOffsets, setHistoryOffsets] = useState<Record<string, HistoryOffset>>({});
   const [draggingHistoryId, setDraggingHistoryId] = useState<string | null>(null);
   const [hoveringHistoryId, setHoveringHistoryId] = useState<string | null>(null);
@@ -167,6 +166,7 @@ export default function Home() {
   const wormRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const zoomRef = useRef(1);
   const zoomFrameRef = useRef<number | null>(null);
+  const sceneRef = useRef<HTMLElement | null>(null);
   const titleWordsRef = useRef<HTMLSpanElement | null>(null);
   const historyDragRef = useRef<HistoryDrag | null>(null);
   const historyDidDragRef = useRef(false);
@@ -470,7 +470,7 @@ export default function Home() {
     if (zoomFrameRef.current === null) {
       zoomFrameRef.current = window.requestAnimationFrame(() => {
         zoomFrameRef.current = null;
-        setZoom(zoomRef.current);
+        sceneRef.current?.style.setProperty('--interface-zoom', `${zoomRef.current}`);
       });
     }
   };
@@ -481,7 +481,8 @@ export default function Home() {
     <main
       className={`time-page ${pageTone} ${showResults ? 'has-results' : ''}`}
       onWheel={handleSceneWheel}
-      style={{ '--interface-zoom': zoom } as CSSProperties}
+      ref={sceneRef}
+      style={{ '--interface-zoom': 1 } as CSSProperties}
     >
       <div
         className="history-orbit"
